@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="cyber">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MISSION://JEE-2027 · Command Center</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05070d;
+    --bg-2:#070a14;
+    --grid-line: rgba(94,234,212,0.06);
+    --grid-line-strong: rgba(129,140,248,0.08);
+    --panel: rgba(12,17,32,0.55);
+    --panel-solid: #0b1020;
+    --border: rgba(94,234,212,0.22);
+    --border-strong: rgba(129,140,248,0.45);
+    --cyan:#22d3ee;
+    --indigo:#818cf8;
+    --purple:#c084fc;
+    --text:#e7f1ff;
+    --text-dim:#7c8aad;
+    --success:#34d399;
+    --danger:#fb7185;
+    --warn:#fbbf24;
+    --shadow-glow: 0 0 24px rgba(34,211,238,0.10), 0 0 60px rgba(129,140,248,0.06);
+  }
+  html[data-theme="light"]{
+    --bg:#eef1fb;
+    --bg-2:#e6eaf7;
+    --grid-line: rgba(79,70,229,0.06);
+    --grid-line-strong: rgba(79,70,229,0.08);
+    --panel: rgba(255,255,255,0.6);
+    --panel-solid: #ffffff;
+    --border: rgba(79,70,229,0.20);
+    --border-strong: rgba(79,70,229,0.35);
+    --cyan:#0891b2;
+    --indigo:#4f46e5;
+    --purple:#9333ea;
+    --text:#0b1224;
+    --text-dim:#57638a;
+    --success:#059669;
+    --danger:#e11d48;
+    --warn:#b45309;
+    --shadow-glow: 0 0 24px rgba(79,70,229,0.08), 0 0 50px rgba(147,51,234,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    overflow-x:hidden;
+    min-height:100vh;
+    transition: background .4s ease, color .4s ease;
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  /* Animated tech grid backdrop */
+  .grid-backdrop{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 42px 42px;
+    animation: gridDrift 22s linear infinite;
+  }
+  .grid-backdrop::after{
+    content:"";
+    position:absolute; inset:0;
+    background: radial-gradient(ellipse 60% 45% at 50% 0%, var(--grid-line-strong), transparent 60%),
+                radial-gradient(ellipse 60% 50% at 90% 100%, rgba(192,132,252,0.08), transparent 60%);
+  }
+  @keyframes gridDrift{ 0%{background-position:0 0;} 100%{background-position:42px 42px;} }
+
+  .scanline{
+    position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.35;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+  }
+
+  /* Spotlight cursor glow */
+  #spotlight{
+    position:fixed; top:0; left:0; width:420px; height:420px; border-radius:50%;
+    background: radial-gradient(circle, rgba(34,211,238,0.10) 0%, rgba(129,140,248,0.06) 40%, transparent 70%);
+    transform: translate(-50%,-50%);
+    pointer-events:none; z-index:2; transition: opacity .3s ease;
+    mix-blend-mode: screen;
+  }
+  #cursor-dot{
+    position:fixed; top:0; left:0; width:8px; height:8px; border-radius:50%;
+    background: var(--cyan); box-shadow:0 0 10px var(--cyan), 0 0 20px var(--cyan);
+    pointer-events:none; z-index:60; transform:translate(-50%,-50%);
+    transition: width .15s, height .15s, background .15s;
+  }
+
+  ::selection{ background: var(--indigo); color:#fff; }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background: var(--border-strong); border-radius:4px; }
+
+  /* Glass HUD panel */
+  .panel{
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius: 14px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-glow);
+    position:relative;
+    transition: border-color .3s ease, transform .15s ease;
+  }
+  .panel::before{
+    content:""; position:absolute; inset:0; border-radius:14px; padding:1px;
+    background: linear-gradient(135deg, rgba(34,211,238,0.35), transparent 30%, transparent 70%, rgba(192,132,252,0.35));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    pointer-events:none; opacity:.6;
+  }
+  .panel-head{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em;
+    color: var(--text-dim); display:flex; align-items:center; gap:8px; text-transform:uppercase;
+  }
+  .panel-head .dot{ width:6px; height:6px; border-radius:50%; background: var(--cyan); box-shadow:0 0 8px var(--cyan); }
+
+  .tilt{ transform-style: preserve-3d; will-change: transform; }
+
+  .btn{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.04em;
+    padding:9px 16px; border-radius:9px; border:1px solid var(--border);
+    background: rgba(255,255,255,0.02); color:var(--text); cursor:pointer;
+    transition: all .2s ease; display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn:hover{ border-color: var(--cyan); box-shadow:0 0 16px rgba(34,211,238,0.25); transform: translateY(-1px); }
+  .btn-glow{ background: linear-gradient(135deg, rgba(34,211,238,0.18), rgba(129,140,248,0.18)); border-color: var(--border-strong); }
+  .btn-glow:hover{ box-shadow:0 0 22px rgba(129,140,248,0.35); }
+  .btn.active{ background: linear-gradient(135deg, var(--cyan), var(--indigo)); color:#04101a; border-color:transparent; font-weight:600; }
+
+  input, select, textarea{
+    background: rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:8px 12px; font-family:'JetBrains Mono',monospace; font-size:13px;
+    outline:none; transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  input:focus, select:focus, textarea:focus{ border-color: var(--cyan); box-shadow:0 0 12px rgba(34,211,238,0.2); }
+  input::placeholder, textarea::placeholder{ color: var(--text-dim); }
+
+  /* Nav dock */
+  #dock{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:40;
+    display:flex; gap:6px; padding:8px; border-radius:18px;
+    background: var(--panel); border:1px solid var(--border); backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-glow);
+  }
+  .dock-btn{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    width:60px; height:52px; border-radius:12px; color: var(--text-dim); cursor:pointer;
+    transition: all .25s cubic-bezier(.2,.9,.3,1.3); position:relative;
+  }
+  .dock-btn span{ font-size:9px; font-family:'JetBrains Mono',monospace; letter-spacing:.05em; }
+  .dock-btn:hover{ background: rgba(255,255,255,0.05); transform: translateY(-4px); color:var(--text); }
+  .dock-btn.active{ color: var(--cyan); background: rgba(34,211,238,0.08); }
+  .dock-btn.active::after{
+    content:""; position:absolute; bottom:-2px; left:50%; transform:translateX(-50%);
+    width:4px; height:4px; border-radius:50%; background: var(--cyan); box-shadow:0 0 8px var(--cyan);
+  }
+
+  .tab-panel{ display:none; animation: fadeSlide .45s ease; }
+  .tab-panel.active{ display:block; }
+  @keyframes fadeSlide{ from{ opacity:0; transform: translateY(14px);} to{opacity:1; transform:translateY(0);} }
+
+  .digit-box{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:clamp(28px,5vw,54px);
+    line-height:1; color:var(--text); text-shadow: 0 0 18px rgba(34,211,238,0.35);
+  }
+  .digit-label{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.18em; color:var(--text-dim); text-transform:uppercase; }
+
+  .progress-track{ height:8px; border-radius:99px; background: rgba(255,255,255,0.05); overflow:hidden; border:1px solid var(--border); }
+  .progress-fill{ height:100%; background: linear-gradient(90deg, var(--cyan), var(--indigo), var(--purple)); box-shadow:0 0 12px rgba(34,211,238,0.5); transition: width .6s ease; }
+
+  /* Heatmap */
+  .heat-cell{ width:12px; height:12px; border-radius:3px; background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.04); cursor:pointer; transition: transform .15s ease; }
+  .heat-cell:hover{ transform: scale(1.35); }
+  .heat-0{ background: rgba(255,255,255,0.05); }
+  .heat-1{ background: rgba(34,211,238,0.28); }
+  .heat-2{ background: rgba(34,211,238,0.5); }
+  .heat-3{ background: rgba(129,140,248,0.75); }
+  .heat-4{ background: linear-gradient(135deg,var(--cyan),var(--purple)); box-shadow:0 0 8px rgba(129,140,248,0.6); }
+
+  /* Flashcard flip */
+  .flip-scene{ perspective: 1400px; }
+  .flip-card{ position:relative; width:100%; height:100%; transition: transform .6s cubic-bezier(.4,.2,.2,1); transform-style: preserve-3d; }
+  .flip-card.flipped{ transform: rotateY(180deg); }
+  .flip-face{ position:absolute; inset:0; backface-visibility:hidden; border-radius:16px; display:flex; align-items:center; justify-content:center; padding:28px; text-align:center; }
+  .flip-back{ transform: rotateY(180deg); }
+
+  .ring-toggle.active{ box-shadow: 0 0 0 2px var(--cyan) inset, 0 0 20px rgba(34,211,238,.4); }
+
+  /* Command palette */
+  #cmdk-overlay{ position:fixed; inset:0; background: rgba(2,4,10,0.72); backdrop-filter: blur(6px); z-index:100; display:none; align-items:flex-start; justify-content:center; padding-top:12vh; }
+  #cmdk-overlay.show{ display:flex; }
+  #cmdk-box{ width:92%; max-width:560px; }
+  .cmdk-item{ padding:11px 14px; border-radius:8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-family:'JetBrains Mono',monospace; font-size:13px; }
+  .cmdk-item.sel, .cmdk-item:hover{ background: rgba(34,211,238,0.12); }
+
+  .checklist-item{ display:flex; align-items:center; gap:10px; padding:6px 4px; border-bottom:1px dashed var(--border); font-size:13px; }
+  .checklist-item input[type=checkbox]{ width:16px; height:16px; accent-color: var(--cyan); }
+
+  .chip{ font-family:'JetBrains Mono',monospace; font-size:11px; padding:5px 12px; border-radius:99px; border:1px solid var(--border); cursor:pointer; color:var(--text-dim); }
+  .chip.active{ background: linear-gradient(135deg, var(--cyan), var(--indigo)); color:#04101a; border-color:transparent; }
+
+  .glow-text{ background: linear-gradient(90deg, var(--cyan), var(--indigo), var(--purple)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+  @keyframes pulse-ring{ 0%{ box-shadow:0 0 0 0 rgba(34,211,238,0.5);} 100%{ box-shadow:0 0 0 12px rgba(34,211,238,0);} }
+  .pulse{ animation: pulse-ring 1.8s infinite; }
+
+  .modal-overlay{ position:fixed; inset:0; background: rgba(2,4,10,0.72); backdrop-filter: blur(6px); z-index:90; display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.show{ display:flex; }
+
+  @media (max-width: 640px){
+    #spotlight, #cursor-dot{ display:none; }
+  }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="grid-backdrop"></div>
+<div class="scanline"></div>
+<div id="spotlight"></div>
+<div id="cursor-dot"></div>
+
+<!-- TOP BAR -->
+<header class="relative z-10 px-4 sm:px-8 pt-6 pb-4 flex flex-wrap items-center justify-between gap-4">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-lg border border-[var(--border-strong)] flex items-center justify-center" style="box-shadow:var(--shadow-glow)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 8v8l10 6 10-6V8L12 2z" stroke="var(--cyan)" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="var(--indigo)" stroke-width="1.5"/></svg>
+    </div>
+    <div>
+      <div class="text-sm sm:text-base font-semibold tracking-wide">MISSION<span class="glow-text">://JEE-2027</span></div>
+      <div class="mono text-[10px] text-[var(--text-dim)] tracking-widest" id="clock">--:--:--</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button id="cmdk-btn" class="btn"><span>⌘K</span> Quick Search</button>
+    <button id="theme-btn" class="btn" title="Toggle theme">🌓</button>
+    <button id="info-btn" class="btn" title="Guide">ⓘ Guide</button>
+  </div>
+</header>
+
+<main class="relative z-10 max-w-6xl mx-auto px-4 sm:px-8 pb-40">
+
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard" class="tab-panel active space-y-6">
+    <div class="panel tilt p-6 sm:p-8">
+      <div class="panel-head mb-4"><span class="dot"></span> T-MINUS TO EXAM · JAN 22 2027</div>
+      <div class="grid grid-cols-4 gap-3 sm:gap-6 text-center">
+        <div><div class="digit-box" id="cd-days">00</div><div class="digit-label">Days</div></div>
+        <div><div class="digit-box" id="cd-hours">00</div><div class="digit-label">Hours</div></div>
+        <div><div class="digit-box" id="cd-mins">00</div><div class="digit-label">Mins</div></div>
+        <div><div class="digit-box" id="cd-secs">00</div><div class="digit-label">Secs</div></div>
+      </div>
+      <div class="mt-6">
+        <div class="flex justify-between mono text-[11px] text-[var(--text-dim)] mb-2">
+          <span id="mission-start-label">MISSION START</span><span>EXAM DAY</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="mission-progress" style="width:0%"></div></div>
+        <div class="text-right mono text-[11px] text-[var(--text-dim)] mt-1" id="mission-pct">0% elapsed</div>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="panel tilt p-5 md:col-span-2">
+        <div class="panel-head mb-3"><span class="dot"></span> CONSISTENCY GRID</div>
+        <div class="flex gap-3 items-start overflow-x-auto pb-2" id="heatmap"></div>
+        <div class="flex justify-between items-center mt-3">
+          <div class="mono text-[11px] text-[var(--text-dim)]">Click a cell to log intensity · click again to cycle</div>
+          <div class="flex items-center gap-4 mono text-[11px]">
+            <span>Streak: <b id="streak-current" class="text-[var(--cyan)]">0</b></span>
+            <span>Best: <b id="streak-best">0</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="panel tilt p-5 flex flex-col justify-between">
+        <div class="panel-head mb-3"><span class="dot"></span> TODAY'S TELEMETRY</div>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center"><span class="text-sm text-[var(--text-dim)]">Focus hours today</span><span class="mono font-semibold text-[var(--cyan)]" id="today-hours">0.0h</span></div>
+          <div class="flex justify-between items-center"><span class="text-sm text-[var(--text-dim)]">Sessions logged</span><span class="mono font-semibold" id="today-sessions">0</span></div>
+          <div class="flex justify-between items-center"><span class="text-sm text-[var(--text-dim)]">Mock avg score</span><span class="mono font-semibold" id="mini-avg-score">--</span></div>
+          <div class="flex justify-between items-center"><span class="text-sm text-[var(--text-dim)]">Syllabus done</span><span class="mono font-semibold text-[var(--indigo)]" id="mini-syllabus">0%</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOCUS -->
+  <section id="tab-focus" class="tab-panel space-y-6">
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="panel tilt p-6 text-center">
+        <div class="panel-head mb-4 justify-center"><span class="dot"></span> FOCUS REACTOR</div>
+        <svg id="pomo-ring" width="220" height="220" viewBox="0 0 220 220" class="mx-auto">
+          <circle cx="110" cy="110" r="96" stroke="rgba(255,255,255,0.06)" stroke-width="10" fill="none"/>
+          <circle id="pomo-arc" cx="110" cy="110" r="96" stroke="url(#gradpomo)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="603" stroke-dashoffset="0" transform="rotate(-90 110 110)"/>
+          <defs><linearGradient id="gradpomo" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#c084fc"/>
+          </linearGradient></defs>
+          <text x="110" y="105" text-anchor="middle" fill="var(--text)" font-family="JetBrains Mono" font-size="34" font-weight="700" id="pomo-time">25:00</text>
+          <text x="110" y="128" text-anchor="middle" fill="var(--text-dim)" font-family="JetBrains Mono" font-size="11" id="pomo-mode">FOCUS</text>
+        </svg>
+        <div class="flex justify-center gap-3 mt-5">
+          <button class="btn btn-glow" id="pomo-start">▶ Start</button>
+          <button class="btn" id="pomo-pause">⏸ Pause</button>
+          <button class="btn" id="pomo-reset">↺ Reset</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-5 mono text-[11px]">
+          <div><label class="text-[var(--text-dim)] block mb-1">Focus (m)</label><input type="number" id="set-focus" value="25" min="1" class="w-full text-center"/></div>
+          <div><label class="text-[var(--text-dim)] block mb-1">Short (m)</label><input type="number" id="set-short" value="5" min="1" class="w-full text-center"/></div>
+          <div><label class="text-[var(--text-dim)] block mb-1">Long (m)</label><input type="number" id="set-long" value="15" min="1" class="w-full text-center"/></div>
+        </div>
+        <input type="text" id="pomo-task" placeholder="What are you focusing on?" class="w-full mt-4 text-center"/>
+      </div>
+
+      <div class="panel tilt p-6">
+        <div class="panel-head mb-4"><span class="dot"></span> SESSION LOG</div>
+        <div id="session-log" class="space-y-2 max-h-[360px] overflow-y-auto mono text-[12px]"></div>
+      </div>
+    </div>
+
+    <div class="panel tilt p-6">
+      <div class="panel-head mb-4"><span class="dot"></span> AMBIENT SOUNDBOARD</div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button class="btn ring-toggle" data-sound="rain">🌧 Rainfall</button>
+        <button class="btn ring-toggle" data-sound="jungle">🐦 Jungle</button>
+        <button class="btn ring-toggle" data-sound="ocean">🌊 Ocean</button>
+        <button class="btn ring-toggle" data-sound="cosmic">✨ Cosmic Pad</button>
+      </div>
+      <div class="flex items-center gap-3 mt-4">
+        <span class="mono text-[11px] text-[var(--text-dim)]">MASTER VOL</span>
+        <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="0.5" class="w-48"/>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section id="tab-analytics" class="tab-panel space-y-6">
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="panel tilt p-6 md:col-span-1">
+        <div class="panel-head mb-4"><span class="dot"></span> LOG MOCK TEST</div>
+        <div class="space-y-3">
+          <input type="text" id="mt-name" placeholder="Test name (e.g. NTA Mock 12)" class="w-full"/>
+          <input type="number" id="mt-score" placeholder="Score /300" class="w-full" min="0" max="300"/>
+          <input type="number" id="mt-accuracy" placeholder="Accuracy %" class="w-full" min="0" max="100"/>
+          <input type="date" id="mt-date" class="w-full"/>
+          <button class="btn btn-glow w-full justify-center" id="mt-add">+ Add Test Entry</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-6 mono text-center">
+          <div class="p-3 rounded-lg border border-[var(--border)]"><div class="text-[var(--cyan)] text-lg font-bold" id="mt-avgscore">--</div><div class="text-[10px] text-[var(--text-dim)]">AVG SCORE</div></div>
+          <div class="p-3 rounded-lg border border-[var(--border)]"><div class="text-[var(--indigo)] text-lg font-bold" id="mt-avgacc">--</div><div class="text-[10px] text-[var(--text-dim)]">AVG ACCURACY</div></div>
+        </div>
+      </div>
+      <div class="panel tilt p-6 md:col-span-2">
+        <div class="panel-head mb-4"><span class="dot"></span> SCORE TRAJECTORY</div>
+        <svg id="traj-chart" viewBox="0 0 600 220" class="w-full h-56"></svg>
+        <div id="mt-list" class="mt-4 space-y-2 max-h-[220px] overflow-y-auto mono text-[12px]"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VAULT -->
+  <section id="tab-vault" class="tab-panel space-y-6">
+    <div class="panel tilt p-6">
+      <div class="panel-head mb-4"><span class="dot"></span> FORMULA & SHORT NOTES VAULT</div>
+      <div class="flex flex-wrap gap-3 mb-4">
+        <input type="text" id="vault-search" placeholder="🔍 Search formulas & notes..." class="flex-1 min-w-[200px]"/>
+        <div class="flex gap-2" id="vault-filters">
+          <button class="chip active" data-cat="All">All</button>
+          <button class="chip" data-cat="Physics">Physics</button>
+          <button class="chip" data-cat="Chemistry">Chemistry</button>
+          <button class="chip" data-cat="Math">Math</button>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3 mb-5">
+        <select id="vault-cat" class="w-full sm:w-auto"><option>Physics</option><option>Chemistry</option><option>Math</option></select>
+        <input type="text" id="vault-title" placeholder="Title (e.g. Work-Energy Theorem)" class="w-full"/>
+        <textarea id="vault-content" placeholder="Formula / short note content..." class="w-full sm:col-span-2" rows="2"></textarea>
+        <button class="btn btn-glow sm:col-span-2 justify-center" id="vault-add">+ Add Card</button>
+      </div>
+      <div id="vault-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+  </section>
+
+  <!-- FLASHCARDS -->
+  <section id="tab-cards" class="tab-panel space-y-6">
+    <div class="panel tilt p-6">
+      <div class="panel-head mb-4"><span class="dot"></span> RAPID REVISION FLASHCARDS</div>
+      <div class="flip-scene w-full max-w-lg mx-auto h-64">
+        <div class="flip-card" id="flip-card">
+          <div class="flip-face panel" style="background:linear-gradient(135deg, rgba(34,211,238,0.08), rgba(129,140,248,0.06));">
+            <div>
+              <div class="mono text-[10px] text-[var(--text-dim)] mb-2 tracking-widest" id="card-subject-front">SUBJECT</div>
+              <div class="text-lg sm:text-xl font-medium" id="card-q">Question</div>
+              <div class="mono text-[10px] text-[var(--text-dim)] mt-4">Tap card to flip</div>
+            </div>
+          </div>
+          <div class="flip-face flip-back panel" style="background:linear-gradient(135deg, rgba(192,132,252,0.10), rgba(34,211,238,0.06));">
+            <div>
+              <div class="mono text-[10px] text-[var(--text-dim)] mb-2 tracking-widest">ANSWER</div>
+              <div class="text-lg sm:text-xl font-medium" id="card-a">Answer</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-center gap-3 mt-6">
+        <button class="btn" id="card-prev">← Prev</button>
+        <button class="btn" id="card-shuffle">⤮ Shuffle</button>
+        <button class="btn" id="card-next">Next →</button>
+      </div>
+      <div class="text-center mono text-[11px] text-[var(--text-dim)] mt-3" id="card-counter">1 / 1</div>
+
+      <div class="grid sm:grid-cols-4 gap-2 mt-6 pt-6 border-t border-dashed" style="border-color:var(--border)">
+        <select id="fc-subject" class="w-full"><option>Physics</option><option>Chemistry</option><option>Math</option></select>
+        <input type="text" id="fc-q" placeholder="Question" class="w-full sm:col-span-1"/>
+        <input type="text" id="fc-a" placeholder="Answer" class="w-full sm:col-span-1"/>
+        <button class="btn btn-glow justify-center" id="fc-add">+ Add Card</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SYLLABUS -->
+  <section id="tab-syllabus" class="tab-panel space-y-6">
+    <div class="panel tilt p-6">
+      <div class="panel-head mb-4"><span class="dot"></span> PCM SYLLABUS MASTERY TRACKER</div>
+      <div class="grid sm:grid-cols-3 gap-4 mb-6 text-center mono">
+        <div class="p-4 rounded-lg border border-[var(--border)]"><div class="text-2xl font-bold text-[var(--cyan)]" id="pct-physics">0%</div><div class="text-[10px] text-[var(--text-dim)] mt-1">PHYSICS</div></div>
+        <div class="p-4 rounded-lg border border-[var(--border)]"><div class="text-2xl font-bold text-[var(--indigo)]" id="pct-chemistry">0%</div><div class="text-[10px] text-[var(--text-dim)] mt-1">CHEMISTRY</div></div>
+        <div class="p-4 rounded-lg border border-[var(--border)]"><div class="text-2xl font-bold text-[var(--purple)]" id="pct-math">0%</div><div class="text-[10px] text-[var(--text-dim)] mt-1">MATHEMATICS</div></div>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6" id="syllabus-cols"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- DOCK -->
+<nav id="dock">
+  <div class="dock-btn active" data-tab="dashboard">📡<span>DASH</span></div>
+  <div class="dock-btn" data-tab="focus">⏱<span>FOCUS</span></div>
+  <div class="dock-btn" data-tab="analytics">📊<span>MOCKS</span></div>
+  <div class="dock-btn" data-tab="vault">📚<span>VAULT</span></div>
+  <div class="dock-btn" data-tab="cards">🃏<span>CARDS</span></div>
+  <div class="dock-btn" data-tab="syllabus">🧭<span>SYLL</span></div>
+</nav>
+
+<!-- COMMAND PALETTE -->
+<div id="cmdk-overlay">
+  <div id="cmdk-box" class="panel p-2">
+    <input id="cmdk-input" type="text" placeholder="Type a command or search notes/cards..." class="w-full !bg-transparent !border-0 !text-base px-3 py-3"/>
+    <div id="cmdk-results" class="max-h-[340px] overflow-y-auto px-1 pb-2"></div>
+  </div>
+</div>
+
+<!-- INFO MODAL -->
+<div id="info-modal" class="modal-overlay">
+  <div class="panel p-6 max-w-lg w-full">
+    <div class="panel-head mb-3"><span class="dot"></span> MISSION BRIEFING</div>
+    <h2 class="text-xl font-semibold mb-2">Command Center Guide</h2>
+    <p class="text-sm text-[var(--text-dim)] mb-3">A single-file, offline-first HUD for JEE Main 2027 prep. Track countdown, streaks, focus sessions, mock scores, formulas, flashcards and syllabus — all in one cockpit.</p>
+    <ul class="text-sm space-y-2 mb-4">
+      <li>🔒 <b>100% Private & Local:</b> All data lives only in this browser's <span class="mono">localStorage</span>. Nothing is sent anywhere, ever.</li>
+      <li>⌨ <b>Ctrl/Cmd + K:</b> Open quick search / command palette anytime.</li>
+      <li>🎧 <b>Soundboard:</b> Synthesized ambient audio, layer multiple tracks freely.</li>
+      <li>🌓 <b>Theme:</b> Switch between Cyber (dark) and Light HUD modes.</li>
+    </ul>
+    <button class="btn btn-glow w-full justify-center" id="info-close">Acknowledge & Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (s,el=document)=>el.querySelector(s);
+  const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+  const todayStr = ()=> new Date().toISOString().slice(0,10);
+  const store = {
+    get(k,d){ try{ const v=localStorage.getItem('jeehud_'+k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+    set(k,v){ localStorage.setItem('jeehud_'+k, JSON.stringify(v)); }
+  };
+
+  /* ---------- THEME ---------- */
+  const html = document.documentElement;
+  let theme = store.get('theme','cyber');
+  html.setAttribute('data-theme', theme);
+  $('#theme-btn').addEventListener('click', ()=>{
+    theme = theme==='cyber' ? 'light' : 'cyber';
+    html.setAttribute('data-theme', theme);
+    store.set('theme', theme);
+  });
+
+  /* ---------- CURSOR SPOTLIGHT ---------- */
+  const spotlight = $('#spotlight'), dot = $('#cursor-dot');
+  window.addEventListener('mousemove', e=>{
+    spotlight.style.left = e.clientX+'px'; spotlight.style.top = e.clientY+'px';
+    dot.style.left = e.clientX+'px'; dot.style.top = e.clientY+'px';
+  });
+  document.addEventListener('mousedown', ()=>{ dot.style.width='14px'; dot.style.height='14px'; });
+  document.addEventListener('mouseup', ()=>{ dot.style.width='8px'; dot.style.height='8px'; });
+
+  /* ---------- 3D TILT ---------- */
+  $$('.tilt').forEach(card=>{
+    card.addEventListener('mousemove', e=>{
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left)/r.width - 0.5;
+      const y = (e.clientY - r.top)/r.height - 0.5;
+      card.style.transform = `perspective(900px) rotateY(${x*4}deg) rotateX(${-y*4}deg) translateY(-2px)`;
+    });
+    card.addEventListener('mouseleave', ()=>{ card.style.transform = 'perspective(900px) rotateY(0) rotateX(0)'; });
+  });
+
+  /* ---------- CLOCK ---------- */
+  function tickClock(){
+    const d = new Date();
+    $('#clock').textContent = d.toLocaleTimeString('en-IN', {hour12:false}) + ' IST · ' + d.toDateString();
+  }
+  tickClock(); setInterval(tickClock, 1000);
+
+  /* ---------- TABS / DOCK ---------- */
+  const tabs = ['dashboard','focus','analytics','vault','cards','syllabus'];
+  function goTab(name){
+    tabs.forEach(t=>{
+      $('#tab-'+t).classList.toggle('active', t===name);
+    });
+    $$('.dock-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===name));
+  }
+  $$('.dock-btn').forEach(b=> b.addEventListener('click', ()=> goTab(b.dataset.tab)));
+  window.addEventListener('keydown', e=>{
+    if(e.key>='1' && e.key<='6' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
+      goTab(tabs[+e.key-1]);
+    }
+  });
+
+  /* ---------- COUNTDOWN + MISSION PROGRESS ---------- */
+  const EXAM_DATE = new Date('2027-01-22T00:00:00');
+  let missionStart = store.get('missionStart', null);
+  if(!missionStart){ missionStart = new Date().toISOString(); store.set('missionStart', missionStart); }
+  const startDate = new Date(missionStart);
+  $('#mission-start-label').textContent = 'MISSION START · ' + startDate.toDateString();
+
+  function tickCountdown(){
+    const now = new Date();
+    let diff = EXAM_DATE - now;
+    if(diff < 0) diff = 0;
+    const d = Math.floor(diff/86400000);
+    const h = Math.floor(diff%86400000/3600000);
+    const m = Math.floor(diff%3600000/60000);
+    const s = Math.floor(diff%60000/1000);
+    $('#cd-days').textContent = String(d).padStart(2,'0');
+    $('#cd-hours').textContent = String(h).padStart(2,'0');
+    $('#cd-mins').textContent = String(m).padStart(2,'0');
+    $('#cd-secs').textContent = String(s).padStart(2,'0');
+
+    const total = EXAM_DATE - startDate;
+    const elapsed = now - startDate;
+    let pct = total>0 ? Math.min(100, Math.max(0,(elapsed/total)*100)) : 100;
+    $('#mission-progress').style.width = pct.toFixed(2)+'%';
+    $('#mission-pct').textContent = pct.toFixed(1)+'% of prep timeline elapsed';
+  }
+  tickCountdown(); setInterval(tickCountdown, 1000);
+
+  /* ---------- HEATMAP ---------- */
+  const heatData = store.get('heatmap', {});
+  function renderHeatmap(){
+    const el = $('#heatmap'); el.innerHTML='';
+    const weeks = 20, days = 7;
+    const today = new Date();
+    const cols = [];
+    for(let w=weeks-1; w>=0; w--){
+      const col = document.createElement('div');
+      col.className='flex flex-col gap-1';
+      for(let d=days-1; d>=0; d--){
+        const dayOffset = w*7 + d;
+        const date = new Date(today); date.setDate(today.getDate()-dayOffset);
+        const key = date.toISOString().slice(0,10);
+        const level = heatData[key] || 0;
+        const cell = document.createElement('div');
+        cell.className = 'heat-cell heat-'+level;
+        cell.title = key+' · level '+level;
+        cell.addEventListener('click', ()=>{
+          heatData[key] = ((heatData[key]||0)+1)%5;
+          store.set('heatmap', heatData);
+          renderHeatmap(); computeStreak(); refreshDashboardMini();
+        });
+        col.appendChild(cell);
+      }
+      cols.push(col);
+    }
+    cols.forEach(c=> el.appendChild(c));
+  }
+  function computeStreak(){
+    let cur=0, best=0, run=0;
+    for(let i=0;i<400;i++){
+      const date = new Date(); date.setDate(date.getDate()-i);
+      const key = date.toISOString().slice(0,10);
+      const lvl = heatData[key]||0;
+      if(lvl>0){ run++; if(i===cur) cur++; } else { if(i===cur) {} run=0; }
+      best = Math.max(best, run);
+      if(lvl===0 && i>0 && cur===i) { /* streak broken exactly here */ }
+    }
+    // simpler recompute: current streak counts back from today while >0
+    cur = 0;
+    for(let i=0;i<400;i++){
+      const date = new Date(); date.setDate(date.getDate()-i);
+      const key = date.toISOString().slice(0,10);
+      if((heatData[key]||0) > 0) cur++; else break;
+    }
+    $('#streak-current').textContent = cur;
+    $('#streak-best').textContent = best;
+  }
+  renderHeatmap(); computeStreak();
+
+  /* ---------- POMODORO ---------- */
+  let pomoState = { mode:'focus', remaining: 25*60, running:false, timer:null };
+  const sessionLog = store.get('sessionLog', []);
+  function renderLog(){
+    const el = $('#session-log');
+    if(sessionLog.length===0){ el.innerHTML = '<div class="text-[var(--text-dim)]">No sessions logged yet. Start the reactor →</div>'; return; }
+    el.innerHTML = sessionLog.slice().reverse().slice(0,50).map(s=>
+      `<div class="flex justify-between border-b border-dashed py-1" style="border-color:var(--border)">
+        <span>${s.type==='focus'?'🎯':'☕'} ${s.task||s.type.toUpperCase()}</span>
+        <span class="text-[var(--text-dim)]">${s.minutes}m · ${new Date(s.ts).toLocaleTimeString('en-IN',{hour12:false})}</span>
+      </div>`).join('');
+  }
+  function refreshDashboardMini(){
+    const today = todayStr();
+    const todays = sessionLog.filter(s=> s.date===today && s.type==='focus');
+    const totalMin = todays.reduce((a,b)=>a+b.minutes,0);
+    $('#today-hours').textContent = (totalMin/60).toFixed(1)+'h';
+    $('#today-sessions').textContent = todays.length;
+    const tests = store.get('mockTests', []);
+    if(tests.length){
+      const avg = tests.reduce((a,b)=>a+Number(b.score),0)/tests.length;
+      $('#mini-avg-score').textContent = avg.toFixed(0)+'/300';
+    }
+    const syl = store.get('syllabus', {});
+    let total=0, done=0;
+    Object.values(syl).forEach(arr=> arr.forEach(v=>{ total++; if(v) done++; }));
+    $('#mini-syllabus').textContent = total ? Math.round(done/total*100)+'%' : '0%';
+  }
+  const RING_LEN = 2*Math.PI*96;
+  function updatePomoDisplay(){
+    const totalSec = getModeSeconds(pomoState.mode);
+    const m = Math.floor(pomoState.remaining/60), s = pomoState.remaining%60;
+    $('#pomo-time').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    $('#pomo-mode').textContent = pomoState.mode.toUpperCase();
+    const frac = 1 - (pomoState.remaining/totalSec);
+    $('#pomo-arc').setAttribute('stroke-dashoffset', RING_LEN*(1-frac));
+    $('#pomo-arc').setAttribute('stroke-dasharray', RING_LEN);
+  }
+  function getModeSeconds(mode){
+    if(mode==='focus') return (+$('#set-focus').value||25)*60;
+    if(mode==='short') return (+$('#set-short').value||5)*60;
+    return (+$('#set-long').value||15)*60;
+  }
+  function pomoTick(){
+    if(pomoState.remaining<=0){
+      logSession();
+      const next = pomoState.mode==='focus' ? 'short' : 'focus';
+      pomoState.mode = next; pomoState.remaining = getModeSeconds(next);
+      updatePomoDisplay();
+      return;
+    }
+    pomoState.remaining--; updatePomoDisplay();
+  }
+  function logSession(){
+    sessionLog.push({ type: pomoState.mode, minutes: getModeSeconds(pomoState.mode)/60, ts: Date.now(), date: todayStr(), task: $('#pomo-task').value });
+    store.set('sessionLog', sessionLog);
+    renderLog(); refreshDashboardMini();
+    // mark heatmap for today
+    const key = todayStr();
+    heatData[key] = Math.min(4, (heatData[key]||0)+1);
+    store.set('heatmap', heatData); renderHeatmap(); computeStreak();
+  }
+  $('#pomo-start').addEventListener('click', ()=>{
+    if(pomoState.running) return;
+    pomoState.running = true;
+    pomoState.remaining = pomoState.remaining || getModeSeconds(pomoState.mode);
+    pomoState.timer = setInterval(pomoTick, 1000);
+  });
+  $('#pomo-pause').addEventListener('click', ()=>{ pomoState.running=false; clearInterval(pomoState.timer); });
+  $('#pomo-reset').addEventListener('click', ()=>{ pomoState.running=false; clearInterval(pomoState.timer); pomoState.remaining=getModeSeconds(pomoState.mode); updatePomoDisplay(); });
+  ['set-focus','set-short','set-long'].forEach(id=> $('#'+id).addEventListener('change', ()=>{ if(!pomoState.running){ pomoState.remaining = getModeSeconds(pomoState.mode); updatePomoDisplay(); }}));
+  pomoState.remaining = getModeSeconds('focus');
+  updatePomoDisplay(); renderLog();
+
+  /* ---------- AMBIENT SOUNDBOARD (Web Audio synthesis) ---------- */
+  let actx = null;
+  const masterGain = { node:null };
+  const sounds = {};
+  function ensureAudio(){
+    if(!actx){ actx = new (window.AudioContext||window.webkitAudioContext)();
+      masterGain.node = actx.createGain(); masterGain.node.gain.value = +$('#vol-slider').value;
+      masterGain.node.connect(actx.destination);
+    }
+  }
+  function makeNoiseBuffer(){
+    const bufferSize = 2*actx.sampleRate;
+    const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++) data[i] = Math.random()*2-1;
+    return buffer;
+  }
+  function startRain(){
+    const src = actx.createBufferSource(); src.buffer = makeNoiseBuffer(); src.loop = true;
+    const filter = actx.createBiquadFilter(); filter.type='highpass'; filter.frequency.value=1200;
+    const gain = actx.createGain(); gain.gain.value = 0.5;
+    src.connect(filter); filter.connect(gain); gain.connect(masterGain.node);
+    src.start();
+    return { stop:()=>{ src.stop(); }, nodes:[src,filter,gain] };
+  }
+  function startOcean(){
+    const src = actx.createBufferSource(); src.buffer = makeNoiseBuffer(); src.loop = true;
+    const filter = actx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=500;
+    const gain = actx.createGain(); gain.gain.value = 0.6;
+    const lfo = actx.createOscillator(); lfo.frequency.value=0.15;
+    const lfoGain = actx.createGain(); lfoGain.gain.value=250;
+    lfo.connect(lfoGain); lfoGain.connect(filter.frequency);
+    src.connect(filter); filter.connect(gain); gain.connect(masterGain.node);
+    src.start(); lfo.start();
+    return { stop:()=>{ src.stop(); lfo.stop(); }, nodes:[src,filter,gain,lfo,lfoGain] };
+  }
+  function startJungle(){
+    const src = actx.createBufferSource(); src.buffer = makeNoiseBuffer(); src.loop = true;
+    const filter = actx.createBiquadFilter(); filter.type='bandpass'; filter.frequency.value=800; filter.Q.value=0.5;
+    const gain = actx.createGain(); gain.gain.value = 0.12;
+    src.connect(filter); filter.connect(gain); gain.connect(masterGain.node);
+    src.start();
+    let active = true;
+    function chirp(){
+      if(!active) return;
+      const o = actx.createOscillator(); o.type='sine';
+      const g = actx.createGain(); g.gain.value=0;
+      const freqStart = 1800+Math.random()*1200;
+      o.frequency.setValueAtTime(freqStart, actx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(freqStart*0.6, actx.currentTime+0.12);
+      g.gain.linearRampToValueAtTime(0.25, actx.currentTime+0.02);
+      g.gain.linearRampToValueAtTime(0, actx.currentTime+0.18);
+      o.connect(g); g.connect(masterGain.node);
+      o.start(); o.stop(actx.currentTime+0.2);
+      setTimeout(chirp, 400+Math.random()*2200);
+    }
+    chirp();
+    return { stop:()=>{ active=false; src.stop(); }, nodes:[src,filter,gain] };
+  }
+  function startCosmic(){
+    const notes = [110,164.8,220,164.8*2];
+    const nodes = [];
+    const gain = actx.createGain(); gain.gain.value=0.18; gain.connect(masterGain.node);
+    const filter = actx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=900; filter.connect(gain);
+    const lfo = actx.createOscillator(); lfo.frequency.value=0.07;
+    const lfoGain = actx.createGain(); lfoGain.gain.value=400;
+    lfo.connect(lfoGain); lfoGain.connect(filter.frequency); lfo.start();
+    notes.forEach((f,i)=>{
+      const o = actx.createOscillator(); o.type = i%2===0?'sawtooth':'sine';
+      o.frequency.value = f; o.detune.value = (i-1.5)*6;
+      o.connect(filter); o.start();
+      nodes.push(o);
+    });
+    nodes.push(lfo);
+    return { stop:()=>{ nodes.forEach(n=>n.stop()); }, nodes:[...nodes, filter, gain, lfoGain] };
+  }
+  const starters = { rain:startRain, jungle:startJungle, ocean:startOcean, cosmic:startCosmic };
+  $$('.ring-toggle').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      ensureAudio();
+      if(actx.state==='suspended') actx.resume();
+      const key = btn.dataset.sound;
+      if(sounds[key]){ sounds[key].stop(); delete sounds[key]; btn.classList.remove('active'); }
+      else { sounds[key] = starters[key](); btn.classList.add('active'); }
+    });
+  });
+  $('#vol-slider').addEventListener('input', e=>{ if(masterGain.node) masterGain.node.gain.value = +e.target.value; });
+
+  /* ---------- MOCK TEST ANALYTICS ---------- */
+  const mockTests = store.get('mockTests', []);
+  $('#mt-date').value = todayStr();
+  function renderMocks(){
+    const list = $('#mt-list');
+    list.innerHTML = mockTests.length ? mockTests.slice().reverse().map((t,i)=>`
+      <div class="flex justify-between border-b border-dashed py-1" style="border-color:var(--border)">
+        <span>${t.name}</span><span class="text-[var(--text-dim)]">${t.score}/300 · ${t.accuracy}% · ${t.date}</span>
+      </div>`).join('') : '<div class="text-[var(--text-dim)]">No tests logged yet.</div>';
+    if(mockTests.length){
+      const avgS = mockTests.reduce((a,b)=>a+Number(b.score),0)/mockTests.length;
+      const avgA = mockTests.reduce((a,b)=>a+Number(b.accuracy),0)/mockTests.length;
+      $('#mt-avgscore').textContent = avgS.toFixed(0);
+      $('#mt-avgacc').textContent = avgA.toFixed(1)+'%';
+    }
+    drawTrajectory();
+  }
+  function drawTrajectory(){
+    const svg = $('#traj-chart'); svg.innerHTML='';
+    if(mockTests.length<1){ svg.innerHTML = '<text x="300" y="110" text-anchor="middle" fill="var(--text-dim)" font-family="JetBrains Mono" font-size="13">Log tests to see trajectory</text>'; return; }
+    const w=600,h=220,pad=30;
+    const max=300;
+    const pts = mockTests.map((t,i)=>{
+      const x = pad + i*((w-2*pad)/Math.max(1,mockTests.length-1));
+      const y = h-pad - (Number(t.score)/max)*(h-2*pad);
+      return [x,y];
+    });
+    let grid='';
+    for(let i=0;i<=4;i++){ const y = pad + i*(h-2*pad)/4; grid += `<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}" stroke="var(--grid-line-strong,rgba(255,255,255,0.06))" stroke-width="1"/>`; }
+    const path = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    const dotsHtml = pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="var(--cyan)" stroke="#000" stroke-width="0.5"/>`).join('');
+    svg.innerHTML = `${grid}<path d="${path}" fill="none" stroke="url(#gradpomo)" stroke-width="2.5"/>${dotsHtml}`;
+  }
+  $('#mt-add').addEventListener('click', ()=>{
+    const name = $('#mt-name').value.trim(); const score = $('#mt-score').value; const accuracy = $('#mt-accuracy').value; const date = $('#mt-date').value || todayStr();
+    if(!name || score==='' ) return;
+    mockTests.push({name, score:Math.min(300,+score), accuracy: accuracy||0, date});
+    store.set('mockTests', mockTests);
+    $('#mt-name').value=''; $('#mt-score').value=''; $('#mt-accuracy').value='';
+    renderMocks(); refreshDashboardMini();
+  });
+  renderMocks();
+
+  /* ---------- FORMULA VAULT ---------- */
+  let vaultCards = store.get('vaultCards', null);
+  if(!vaultCards){
+    vaultCards = [
+      {cat:'Physics', title:'Work-Energy Theorem', content:'W_net = ΔKE = ½mv² − ½mu²'},
+      {cat:'Physics', title:'Escape Velocity', content:'v_e = √(2GM/R)'},
+      {cat:'Chemistry', title:'Ideal Gas Law', content:'PV = nRT'},
+      {cat:'Chemistry', title:'Nernst Equation', content:'E = E° − (RT/nF) ln Q'},
+      {cat:'Math', title:'Quadratic Roots', content:'x = [−b ± √(b²−4ac)] / 2a'},
+      {cat:'Math', title:'Binomial Expansion', content:'(1+x)ⁿ = Σ nCr xʳ'}
+    ];
+    store.set('vaultCards', vaultCards);
+  }
+  let vaultFilter = 'All';
+  function renderVault(){
+    const q = $('#vault-search').value.toLowerCase();
+    const grid = $('#vault-grid');
+    const filtered = vaultCards.filter(c=> (vaultFilter==='All'||c.cat===vaultFilter) && (c.title.toLowerCase().includes(q)||c.content.toLowerCase().includes(q)));
+    grid.innerHTML = filtered.length ? filtered.map((c,i)=>`
+      <div class="panel p-4">
+        <div class="mono text-[10px] tracking-widest mb-2" style="color:var(--indigo)">${c.cat.toUpperCase()}</div>
+        <div class="font-semibold mb-1">${c.title}</div>
+        <div class="text-sm text-[var(--text-dim)] mono">${c.content}</div>
+      </div>`).join('') : '<div class="text-[var(--text-dim)] col-span-full">No matches found.</div>';
+  }
+  $('#vault-search').addEventListener('input', renderVault);
+  $$('#vault-filters .chip').forEach(chip=> chip.addEventListener('click', ()=>{
+    $$('#vault-filters .chip').forEach(c=>c.classList.remove('active')); chip.classList.add('active');
+    vaultFilter = chip.dataset.cat; renderVault();
+  }));
+  $('#vault-add').addEventListener('click', ()=>{
+    const cat = $('#vault-cat').value, title = $('#vault-title').value.trim(), content = $('#vault-content').value.trim();
+    if(!title || !content) return;
+    vaultCards.push({cat,title,content}); store.set('vaultCards', vaultCards);
+    $('#vault-title').value=''; $('#vault-content').value='';
+    renderVault();
+  });
+  renderVault();
+
+  /* ---------- FLASHCARDS ---------- */
+  let flashcards = store.get('flashcards', null);
+  if(!flashcards){
+    flashcards = [
+      {subject:'Physics', q:"State Newton's Second Law", a:'F = dp/dt = ma (for constant mass)'},
+      {subject:'Physics', q:'Formula for time period of SHM', a:'T = 2π√(m/k)'},
+      {subject:'Chemistry', q:'Define Molarity', a:'Moles of solute per litre of solution'},
+      {subject:'Chemistry', q:'Aufbau Principle', a:'Electrons fill lowest energy orbitals first'},
+      {subject:'Math', q:'Derivative of sin(x)', a:'cos(x)'},
+      {subject:'Math', q:'Sum of first n natural numbers', a:'n(n+1)/2'}
+    ];
+    store.set('flashcards', flashcards);
+  }
+  let cardIndex = 0;
+  function renderCard(){
+    if(flashcards.length===0){ $('#card-q').textContent='No cards yet'; $('#card-a').textContent='Add one below'; $('#card-counter').textContent='0 / 0'; return; }
+    cardIndex = ((cardIndex % flashcards.length) + flashcards.length) % flashcards.length;
+    const c = flashcards[cardIndex];
+    $('#card-subject-front').textContent = c.subject.toUpperCase();
+    $('#card-q').textContent = c.q;
+    $('#card-a').textContent = c.a;
+    $('#card-counter').textContent = (cardIndex+1)+' / '+flashcards.length;
+    $('#flip-card').classList.remove('flipped');
+  }
+  $('#flip-card').addEventListener('click', ()=> $('#flip-card').classList.toggle('flipped'));
+  $('#card-next').addEventListener('click', ()=>{ cardIndex++; renderCard(); });
+  $('#card-prev').addEventListener('click', ()=>{ cardIndex--; renderCard(); });
+  $('#card-shuffle').addEventListener('click', ()=>{ cardIndex = Math.floor(Math.random()*flashcards.length); renderCard(); });
+  $('#fc-add').addEventListener('click', ()=>{
+    const subject = $('#fc-subject').value, q = $('#fc-q').value.trim(), a = $('#fc-a').value.trim();
+    if(!q||!a) return;
+    flashcards.push({subject,q,a}); store.set('flashcards', flashcards);
+    $('#fc-q').value=''; $('#fc-a').value='';
+    cardIndex = flashcards.length-1; renderCard();
+  });
+  renderCard();
+
+  /* ---------- SYLLABUS TRACKER ---------- */
+  const SYLLABUS_DEF = {
+    Physics: ['Units & Measurements','Kinematics','Laws of Motion','Work Energy Power','Rotational Motion','Gravitation','Properties of Solids & Liquids','Thermodynamics','Kinetic Theory of Gases','Oscillations & Waves','Electrostatics','Current Electricity','Magnetic Effects of Current','Electromagnetic Induction','Alternating Current','Optics','Dual Nature of Matter','Atoms & Nuclei','Electronic Devices'],
+    Chemistry: ['Basic Concepts','Atomic Structure','Chemical Bonding','States of Matter','Thermodynamics','Equilibrium','Redox Reactions','Hydrogen','s-Block Elements','p-Block Elements','Organic Chemistry Basics','Hydrocarbons','Coordination Compounds','d & f Block Elements','Chemical Kinetics','Surface Chemistry','Electrochemistry','Biomolecules','Polymers & Everyday Chemistry'],
+    Math: ['Sets, Relations & Functions','Complex Numbers','Quadratic Equations','Sequences & Series','Matrices & Determinants','Permutations & Combinations','Binomial Theorem','Limits, Continuity & Differentiability','Integral Calculus','Differential Equations','Coordinate Geometry','3D Geometry','Vector Algebra','Statistics & Probability','Trigonometry','Mathematical Reasoning']
+  };
+  let syllabusState = store.get('syllabus', null);
+  if(!syllabusState){
+    syllabusState = {};
+    Object.keys(SYLLABUS_DEF).forEach(sub=> syllabusState[sub] = SYLLABUS_DEF[sub].map(()=>false));
+    store.set('syllabus', syllabusState);
+  }
+  function renderSyllabus(){
+    const cols = $('#syllabus-cols'); cols.innerHTML='';
+    Object.keys(SYLLABUS_DEF).forEach(sub=>{
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<div class="mono text-[11px] tracking-widest mb-2" style="color:var(--cyan)">${sub.toUpperCase()}</div>`;
+      SYLLABUS_DEF[sub].forEach((chap,i)=>{
+        const row = document.createElement('label');
+        row.className='checklist-item';
+        row.innerHTML = `<input type="checkbox" ${syllabusState[sub][i]?'checked':''}/> <span>${chap}</span>`;
+        row.querySelector('input').addEventListener('change', e=>{
+          syllabusState[sub][i] = e.target.checked;
+          store.set('syllabus', syllabusState);
+          updateSyllabusPct(); refreshDashboardMini();
+        });
+        wrap.appendChild(row);
+      });
+      cols.appendChild(wrap);
+    });
+    updateSyllabusPct();
+  }
+  function updateSyllabusPct(){
+    Object.keys(SYLLABUS_DEF).forEach(sub=>{
+      const arr = syllabusState[sub];
+      const pct = Math.round(arr.filter(Boolean).length/arr.length*100);
+      $('#pct-'+sub.toLowerCase()).textContent = pct+'%';
+    });
+  }
+  renderSyllabus();
+
+  /* ---------- COMMAND PALETTE ---------- */
+  const overlay = $('#cmdk-overlay'), input = $('#cmdk-input'), results = $('#cmdk-results');
+  let selIndex = 0;
+  function baseCommands(){
+    return [
+      {label:'Go to Dashboard', action:()=>goTab('dashboard')},
+      {label:'Go to Focus Hub', action:()=>goTab('focus')},
+      {label:'Go to Mock Analytics', action:()=>goTab('analytics')},
+      {label:'Go to Formula Vault', action:()=>goTab('vault')},
+      {label:'Go to Flashcards', action:()=>goTab('cards')},
+      {label:'Go to Syllabus Tracker', action:()=>goTab('syllabus')},
+      {label:'Toggle Theme', action:()=>$('#theme-btn').click()},
+      {label:'Open Mission Briefing', action:()=>openInfo()},
+    ];
+  }
+  function searchAll(q){
+    q = q.toLowerCase();
+    let cmds = baseCommands().filter(c=> !q || c.label.toLowerCase().includes(q));
+    if(q){
+      vaultCards.forEach(c=>{ if(c.title.toLowerCase().includes(q)||c.content.toLowerCase().includes(q)) cmds.push({label:'📚 '+c.title, hint:c.cat, action:()=>{ goTab('vault'); $('#vault-search').value=c.title; renderVault(); }}); });
+      flashcards.forEach(c=>{ if(c.q.toLowerCase().includes(q)) cmds.push({label:'🃏 '+c.q, hint:c.subject, action:()=>{ goTab('cards'); cardIndex = flashcards.indexOf(c); renderCard(); }}); });
+    }
+    return cmds.slice(0,30);
+  }
+  function renderCmdk(){
+    const list = searchAll(input.value);
+    results.innerHTML = list.map((c,i)=>`<div class="cmdk-item ${i===selIndex?'sel':''}" data-i="${i}"><span>${c.label}</span>${c.hint?`<span class="text-[var(--text-dim)]">${c.hint}</span>`:''}</div>`).join('') || '<div class="p-3 text-[var(--text-dim)]">No results</div>';
+    $$('.cmdk-item', results).forEach(el=> el.addEventListener('click', ()=>{ list[+el.dataset.i].action(); closeCmdk(); }));
+  }
+  function openCmdk(){ overlay.classList.add('show'); input.value=''; selIndex=0; renderCmdk(); setTimeout(()=>input.focus(),50); }
+  function closeCmdk(){ overlay.classList.remove('show'); }
+  $('#cmdk-btn').addEventListener('click', openCmdk);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeCmdk(); });
+  input.addEventListener('input', ()=>{ selIndex=0; renderCmdk(); });
+  window.addEventListener('keydown', e=>{
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); overlay.classList.contains('show') ? closeCmdk() : openCmdk(); }
+    if(overlay.classList.contains('show')){
+      const list = searchAll(input.value);
+      if(e.key==='ArrowDown'){ e.preventDefault(); selIndex=Math.min(list.length-1, selIndex+1); renderCmdk(); }
+      if(e.key==='ArrowUp'){ e.preventDefault(); selIndex=Math.max(0, selIndex-1); renderCmdk(); }
+      if(e.key==='Enter'){ if(list[selIndex]){ list[selIndex].action(); closeCmdk(); } }
+      if(e.key==='Escape'){ closeCmdk(); }
+    }
+  });
+
+  /* ---------- INFO MODAL ---------- */
+  const infoModal = $('#info-modal');
+  function openInfo(){ infoModal.classList.add('show'); }
+  $('#info-btn').addEventListener('click', openInfo);
+  $('#info-close').addEventListener('click', ()=> infoModal.classList.remove('show'));
+  infoModal.addEventListener('click', e=>{ if(e.target===infoModal) infoModal.classList.remove('show'); });
+
+  /* ---------- INIT ---------- */
+  refreshDashboardMini();
+})();
+</script>
+</body>
+</html>
